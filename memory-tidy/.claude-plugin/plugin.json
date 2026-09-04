@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "memory-tidy",
+  "version": "0.1.0",
+  "description": "auto memory（MEMORY.md ＋ トピック/タスクファイル群）を整理・圧縮するスキル。",
+  "author": {
+    "name": "ymegane"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "skill",
+    "memory"
+  ]
+}

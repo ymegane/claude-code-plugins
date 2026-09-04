@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "fable-advisor",
+  "version": "0.1.0",
+  "description": "設計判断のセカンドオピニオンや難航したデバッグの深掘り診断を、助言専任のサブエージェントに相談するスキルとエージェント定義。",
+  "author": {
+    "name": "ymegane"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "skill",
+    "agent",
+    "advisor"
+  ]
+}

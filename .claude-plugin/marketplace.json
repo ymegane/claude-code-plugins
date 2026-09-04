@@ -1,0 +1,36 @@
+{
+  "name": "ymegane-plugins",
+  "owner": {
+    "name": "ymegane"
+  },
+  "metadata": {
+    "description": "個人用の Claude Code プラグイン置き場。",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "context-guard",
+      "description": "コンテキスト圧縮に備えて、重要事項の memory 退避・transcript バックアップ・圧縮後の復帰誘導を行う。",
+      "version": "0.1.0",
+      "source": "./context-guard"
+    },
+    {
+      "name": "memory-tidy",
+      "description": "auto memory（MEMORY.md ＋ トピック/タスクファイル群）を整理・圧縮するスキル。",
+      "version": "0.1.0",
+      "source": "./memory-tidy"
+    },
+    {
+      "name": "japanese-writing",
+      "description": "日本語の技術文書を書く・推敲するための文章規範。正確さと論証を担保する層と、読み進める推進力を足す層の 2 本。",
+      "version": "0.1.0",
+      "source": "./japanese-writing"
+    },
+    {
+      "name": "fable-advisor",
+      "description": "設計判断のセカンドオピニオンや難航したデバッグの深掘り診断を、助言専任のサブエージェントに相談するスキルとエージェント定義。",
+      "version": "0.1.0",
+      "source": "./fable-advisor"
+    }
+  ]
+}

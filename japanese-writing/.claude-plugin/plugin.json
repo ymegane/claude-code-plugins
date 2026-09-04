@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "japanese-writing",
+  "version": "0.1.0",
+  "description": "日本語の技術文書を書く・推敲するための文章規範。正確さと論証を担保する層と、読み進める推進力を足す層の 2 本。",
+  "author": {
+    "name": "ymegane"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "skill",
+    "writing",
+    "japanese"
+  ]
+}
