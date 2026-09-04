@@ -12,6 +12,8 @@
 | 圧縮の直前（PreCompact） | transcript を `~/.claude/backups/context-guard/` へコピーする（セッションごと 20 世代） |
 | 圧縮の直後（PostCompact → 次のプロンプト） | memory と生ログの場所を示し、「要約は記録であって指示ではない」「原本が正」を伝える |
 
+hook が動いたことは `systemMessage` でユーザーの画面にも 1 行出る（`additionalContext` はモデルにしか届かないため）。退避を終えた Claude は、書き出し先を 1 行で報告し、区切りのよいところで `/compact` を実行できることをユーザーに伝える。
+
 退避そのものはセッションの Claude 自身が行う。別プロセスの LLM に要約させるわけではないので、そのターンの作業は一度中断する代わりに、退避先はプロジェクトの memory になり次のセッションから読める。
 
 ## 導入
@@ -44,7 +46,10 @@ ls "${TMPDIR}/claude-context-guard/"   # <session_id>.pct が見えれば OK
 |---|---|---|
 | `CONTEXT_GUARD_PCT` | 80 | 退避を指示する使用率 |
 | `CONTEXT_GUARD_REARM_PCT` | 閾値 − 15 | ここまで下がったら再武装する使用率 |
+| `CONTEXT_GUARD_STEP_PCT` | 10 | 前回の通知からこれだけ上がったら再度促す |
 | `CONTEXT_GUARD_DISABLE` | — | `1` で退避の指示を止める |
+
+一度促したあとは黙るが、閾値を超えたまま `CONTEXT_GUARD_STEP_PCT` 分だけ悪化すると、圧縮を待たずにもう一度促す（既定なら 80% → 90% → 100%）。長いセッションで 80% から 89% まで上がるあいだ無音になるのを防ぐための挙動。
 
 `settings.json` の `env` に書ける。
 
@@ -55,7 +60,7 @@ ls "${TMPDIR}/claude-context-guard/"   # <session_id>.pct が見えれば OK
 | ファイル | 書き手 | 読み手 | 役割 |
 |---|---|---|---|
 | `<session_id>.pct` | statusline | 退避 hook | 使用率。唯一の外部依存 |
-| `<session_id>.notified` | 退避 hook | 退避 hook | 通知済み。PostCompact か再武装閾値で消える |
+| `<session_id>.notified` | 退避 hook | 退避 hook | 通知したときの使用率。次に促すかの判定に使い、PostCompact か再武装閾値で消える |
 | `<session_id>.compacted` | PostCompact hook | 復帰 hook | 圧縮が起きた印。次のプロンプトで消費される |
 
 hook はすべて fail-open で書いてある。マーカーが無い・壊れている・書けない場合は黙って通し、プロンプトや圧縮を止めない。

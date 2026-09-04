@@ -6,13 +6,16 @@
 # 書き出す `<session_id>.pct` を読む（組み込み方は statusline/README.md）。
 # state が無いときは何もしない。推測で発火させない。
 #
-# 発火は 1 回だけ。cooldown マーカー `<session_id>.notified` を置き、
+# 一度促したら黙る。cooldown マーカー `<session_id>.notified` に通知時の使用率を記録し、
 # 圧縮が走ったら PostCompact hook が消して次の警告を許す。
 # 圧縮を経ずに使用率が下がった場合の保険として、再武装閾値でも消す。
+# さらに、閾値を超えたまま step 分だけ悪化したら、圧縮を待たずにもう一度促す
+# （80% で促してから 89% まで上がるような長いセッションが無音になるのを防ぐ）。
 #
 # 環境変数:
 #   CONTEXT_GUARD_PCT       発火する使用率（既定 80）
 #   CONTEXT_GUARD_REARM_PCT ここまで下がったら再武装する使用率（既定 = 発火閾値 - 15）
+#   CONTEXT_GUARD_STEP_PCT  前回の通知からこれだけ上がったら再度促す（既定 10）
 #   CONTEXT_GUARD_DISABLE   1 なら何もしない
 
 set -uo pipefail
@@ -49,7 +52,16 @@ if [ "$pct" -lt "$rearm" ]; then
 fi
 
 [ "$pct" -ge "$threshold" ] || exit 0
-[ -f "$notified_file" ] && exit 0
+
+# 通知済みでも、そこから step 分だけ悪化していれば promote し直す。
+step=${CONTEXT_GUARD_STEP_PCT:-10}
+last_notified=""
+if [ -f "$notified_file" ]; then
+  last_notified=$(cat "$notified_file" 2>/dev/null)
+  # 使用率を記録する前の形式（空ファイル）は、閾値ちょうどで通知済みとみなす
+  case "$last_notified" in '' | *[!0-9]*) last_notified=$threshold ;; esac
+  [ "$pct" -ge "$(( last_notified + step ))" ] || exit 0
+fi
 
 if memory_dir=$(cg_memory_dir "$cwd"); then
   memory_hint="退避先は ${memory_dir}/ 配下（該当する task-*.md があれば更新、無ければ新規作成し、MEMORY.md の「進行中タスク」から 1 行で辿れるようにする）。"
@@ -57,10 +69,16 @@ else
   memory_hint="退避先はこのプロジェクトのメモリディレクトリ配下（運用ルールは MEMORY.md に従う）。"
 fi
 
-mkdir -p "$state_dir" 2>/dev/null && : > "$notified_file" 2>/dev/null
+mkdir -p "$state_dir" 2>/dev/null && printf '%s\n' "$pct" > "$notified_file" 2>/dev/null
+
+if [ -n "$last_notified" ]; then
+  headline="[context-guard] コンテキスト使用率が ${pct}% まで上がりました（前回 ${last_notified}% で退避を促しています）。自動圧縮が近づいています。"
+else
+  headline="[context-guard] コンテキスト使用率が ${pct}%（閾値 ${threshold}%）に達しました。自動圧縮が近づいています。"
+fi
 
 cg_emit_context "$(cat <<EOF
-[context-guard] コンテキスト使用率が ${pct}%（閾値 ${threshold}%）に達しました。自動圧縮が近づいています。
+${headline}
 
 ユーザーの依頼に取りかかる前に、圧縮で失われると困る事項を memory へ退避してください。${memory_hint}
 
@@ -71,8 +89,8 @@ cg_emit_context "$(cat <<EOF
 - 未解決の論点、次にやること、途中で保留した作業
 - 参照した Jira / PR / ファイルパスなどの座標
 
-退避が済んだら、その旨を 1 行だけ述べて、中断した作業を続けてください。
+退避が済んだら、何をどのファイルへ書いたかを 1 行で述べ、区切りのよいところで \`/compact\` を実行できることをユーザーに伝えてください（圧縮の直前には transcript が自動でバックアップされます）。そのうえで中断した作業を続けてください。
 すでに退避済みで新しく書くことが無ければ、その旨を 1 行述べて作業を続けて構いません。
 EOF
-)"
+)" "context-guard: ctx ${pct}% — 重要事項の退避を指示しました"
 exit 0

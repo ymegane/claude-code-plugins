@@ -17,13 +17,25 @@ cg_session_id() {
 }
 
 # additionalContext を UserPromptSubmit の出力形式で標準出力へ書く。
+# 第 2 引数を渡すと systemMessage としてユーザーの画面にも 1 行出す。
+# additionalContext はモデルにしか届かないので、hook が動いた事実を人が知るにはこちらが要る。
 cg_emit_context() {
-  jq -n --arg ctx "$1" '{
-    hookSpecificOutput: {
-      hookEventName: "UserPromptSubmit",
-      additionalContext: $ctx
-    }
-  }'
+  if [ -n "${2:-}" ]; then
+    jq -n --arg ctx "$1" --arg msg "$2" '{
+      hookSpecificOutput: {
+        hookEventName: "UserPromptSubmit",
+        additionalContext: $ctx
+      },
+      systemMessage: $msg
+    }'
+  else
+    jq -n --arg ctx "$1" '{
+      hookSpecificOutput: {
+        hookEventName: "UserPromptSubmit",
+        additionalContext: $ctx
+      }
+    }'
+  fi
 }
 
 # cwd に対応する auto memory ディレクトリ。実在するときだけパスを返す
