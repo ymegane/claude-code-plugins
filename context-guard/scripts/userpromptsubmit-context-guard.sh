@@ -3,7 +3,7 @@
 # memory へ退避するよう指示する。
 #
 # 使用率の取得経路: hook の stdin には context_window が渡らないため、毎ターン走る statusline が
-# 書き出す `<session_id>.pct` を読む（組み込み方は statusline/README.md）。
+# 書き出す `<session_id>.pct` を読む（組み込み方は context-guard/README.md）。
 # state が無いときは何もしない。推測で発火させない。
 #
 # 一度促したら黙る。cooldown マーカー `<session_id>.notified` に通知時の使用率を記録し、

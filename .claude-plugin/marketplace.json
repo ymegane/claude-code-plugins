@@ -1,7 +1,8 @@
 {
   "name": "ymegane-plugins",
   "owner": {
-    "name": "ymegane"
+    "name": "ymegane",
+    "url": "https://github.com/ymegane"
   },
   "metadata": {
     "description": "個人用の Claude Code プラグイン置き場。",

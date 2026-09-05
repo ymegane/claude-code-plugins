@@ -11,15 +11,23 @@
 
 ## 導入
 
-`~/.claude/settings.json` に marketplace を登録し、使うプラグインを有効にする。
+GitHub から入れる。private リポジトリなので、`gh auth login` 済みか SSH 鍵が通っていることが前提。
+
+```bash
+claude plugin marketplace add ymegane/claude-code-plugins
+claude plugin install context-guard@ymegane-plugins
+claude plugin install memory-tidy@ymegane-plugins
+```
+
+`~/.claude/settings.json` に直接書くこともできる。
 
 ```json
 {
   "extraKnownMarketplaces": {
     "ymegane-plugins": {
       "source": {
-        "source": "directory",
-        "path": "/Users/<user>/Developer/github/claude-code-plugins"
+        "source": "github",
+        "repo": "ymegane/claude-code-plugins"
       }
     }
   },
@@ -30,19 +38,26 @@
 }
 ```
 
-CLI からでも入る。
-
-```bash
-claude plugin marketplace add ~/Developer/github/claude-code-plugins
-claude plugin install context-guard@ymegane-plugins
-claude plugin install memory-tidy@ymegane-plugins
-```
-
 context-guard は statusline への追記が別途要る。[context-guard/README.md](./context-guard/README.md) を参照。
 
 ## 開発
 
-`directory` ソースで登録すると、`~/.claude/plugins/known_marketplaces.json` の `installLocation` がこのリポジトリ自身を指す（github ソースのようにキャッシュへクローンされない）。編集はそのまま実体に効き、反映は Claude Code の再起動時。
+自分で編集しながら使うなら、`github` ソースではなくクローンしたローカルパスを `directory` ソースで登録する。
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "ymegane-plugins": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/<user>/Developer/github/claude-code-plugins"
+      }
+    }
+  }
+}
+```
+
+`directory` ソースは `~/.claude/plugins/known_marketplaces.json` の `installLocation` がこのリポジトリ自身を指す（`github` ソースのようにキャッシュへクローンされない）。編集はそのまま実体に効き、反映は Claude Code の再起動時。
 
 変更前の検証:
 

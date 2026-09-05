@@ -6,6 +6,8 @@
   "author": {
     "name": "ymegane"
   },
+  "homepage": "https://github.com/ymegane/claude-code-plugins/tree/main/context-guard",
+  "repository": "https://github.com/ymegane/claude-code-plugins",
   "license": "MIT",
   "keywords": [
     "claude-code",
