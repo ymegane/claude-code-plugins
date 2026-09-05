@@ -23,7 +23,7 @@
     },
     {
       "name": "japanese-writing",
-      "description": "日本語の技術文書を書く・推敲するための文章規範。正確さと論証を担保する層と、読み進める推進力を足す層の 2 本。",
+      "description": "日本語の技術文書を書く・推敲するための文章規範。常時適用する output style と、正確さ・論証を担保する層／読み進める推進力を足す層の skill 2 本。",
       "version": "0.1.0",
       "source": "./japanese-writing"
     },
