@@ -14,15 +14,14 @@ context-guard の設計は [compact-plus](https://github.com/u-ichi/compact-plus
 
 ## 導入
 
-GitHub から入れる。private リポジトリなので、`gh auth login` 済みか SSH 鍵が通っていることが前提。
-
 ```bash
 claude plugin marketplace add ymegane/claude-code-plugins
 claude plugin install context-guard@ymegane-plugins
-claude plugin install memory-tidy@ymegane-plugins
 ```
 
-`~/.claude/settings.json` に直接書くこともできる。
+入れられるのは `context-guard` / `memory-tidy` / `japanese-writing` / `fable-advisor` の 4 つ。要るものだけ入れる。
+
+`~/.claude/settings.json` に直接書いてもよい。
 
 ```json
 {
@@ -41,12 +40,23 @@ claude plugin install memory-tidy@ymegane-plugins
 }
 ```
 
-context-guard は statusline への追記が別途要る。[context-guard/README.md](./context-guard/README.md) を参照。
-japanese-writing の output style は `outputStyle` の設定が別途要る。[japanese-writing/README.md](./japanese-writing/README.md) を参照。
+### 別途要る設定
+
+- **context-guard**: statusline への追記が要る。追記しないと退避の指示は一度も出ない（hook の stdin にはコンテキスト使用率が渡らないため）。[context-guard/README.md](./context-guard/README.md)
+- **japanese-writing**: output style は `outputStyle` の設定で有効にする。skill 2 本は設定なしで使える。[japanese-writing/README.md](./japanese-writing/README.md)
+
+memory-tidy と fable-advisor は、インストールすればそのまま使える。
+
+### 動作要件
+
+- context-guard の hook は `bash` と `jq` を使う。`jq` が無い環境では hook は黙って何もしない（fail-open で書いてある）
+- memory-tidy の health check スクリプトは `bash`。`--check-prs` を付けるときは `gh` も要る
+- japanese-writing と fable-advisor に追加の依存はない
+- 開発と動作確認は macOS でのみ行っている。同梱の bash は 3.2 なので、それで動く書き方にしてある。Linux でも動くはずだが確認はしていない
 
 ## 開発
 
-自分で編集しながら使うなら、`github` ソースではなくクローンしたローカルパスを `directory` ソースで登録する。
+手元で編集しながら使うなら、クローンしたローカルパスを `directory` ソースで登録する。
 
 ```json
 {
@@ -54,18 +64,21 @@ japanese-writing の output style は `outputStyle` の設定が別途要る。[
     "ymegane-plugins": {
       "source": {
         "source": "directory",
-        "path": "/Users/<user>/Developer/github/claude-code-plugins"
+        "path": "/path/to/claude-code-plugins"
       }
     }
   }
 }
 ```
 
-`directory` ソースは `~/.claude/plugins/known_marketplaces.json` の `installLocation` がこのリポジトリ自身を指す（`github` ソースのようにキャッシュへクローンされない）。編集はそのまま実体に効き、反映は Claude Code の再起動時。
+`directory` ソースは `~/.claude/plugins/known_marketplaces.json` の `installLocation` がそのディレクトリ自身を指す（`github` ソースのようにキャッシュへクローンされない）。編集はそのまま実体に効き、反映は Claude Code の再起動時。
 
 変更前の検証:
 
 ```bash
 claude plugin validate ./context-guard
 claude plugin validate ./memory-tidy
+claude plugin validate ./japanese-writing
+claude plugin validate ./fable-advisor
+claude plugin validate .
 ```
