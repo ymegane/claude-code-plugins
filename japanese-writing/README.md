@@ -3,6 +3,22 @@
 日本語の技術文書を書く、推敲するための文章規範。
 常時適用する output style と、深く当てるための skill 2 本で構成する。
 
+## 出典
+
+skill 2 本は、k16shikano 氏が公開している gist をベースにしている。
+
+- [japanese-tech-writing/SKILL](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d)
+- [cognitive-rhythm-writing/SKILL.md](https://gist.github.com/k16shikano/eb2929f13ed19c97188393d297be8432)
+
+いずれもライセンスは Unlicense（gist のコメントで著者が明記している）。
+
+本文はほぼ原典のままで、変更点は次のとおり。
+
+- `japanese-tech-writing`：冒頭に `cognitive-rhythm-writing` との併用指示を追加した。それ以外は原典のまま。
+- `cognitive-rhythm-writing`：description だけを書き換え、適用場面を具体化して `japanese-tech-writing` との併用を明記した。本文は原典のまま。
+
+output style（`output-styles/japanese-writing.md`）も、この 2 本から常時適用する中核を抜き出して再構成したもので、規範の中身は原典に帰属する。
+
 ## 3 つの層
 
 | 層 | 実体 | 効くタイミング | 分量 |

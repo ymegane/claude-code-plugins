@@ -9,6 +9,9 @@
 | [japanese-writing](./japanese-writing/) | output style + skills | 日本語技術文書の文章規範。常時適用の output style と、正確さ・論証／推進力の skill 2 本 |
 | [fable-advisor](./fable-advisor/) | skill + agent | 設計判断のセカンドオピニオン、難航したデバッグの深掘り診断を助言専任のサブエージェントに相談する |
 
+japanese-writing の文章規範は [k16shikano](https://gist.github.com/k16shikano) 氏が公開している gist（Unlicense）をベースにしている。詳細は [japanese-writing/README.md](./japanese-writing/README.md) を参照。
+context-guard の設計は [compact-plus](https://github.com/u-ichi/compact-plus) を参考にした。
+
 ## 導入
 
 GitHub から入れる。private リポジトリなので、`gh auth login` 済みか SSH 鍵が通っていることが前提。

@@ -19,3 +19,20 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+Third-party content
+
+japanese-writing プラグインが定める文章規範は、k16shikano 氏が Unlicense で公開している
+次の gist をベースにしている。
+
+- https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d
+- https://gist.github.com/k16shikano/eb2929f13ed19c97188393d297be8432
+
+対象は japanese-writing/skills/japanese-tech-writing/SKILL.md、
+japanese-writing/skills/cognitive-rhythm-writing/SKILL.md、
+および両者から中核を抜き出して再構成した
+japanese-writing/output-styles/japanese-writing.md である。
+これらに由来する規範の中身は Unlicense（パブリックドメイン相当）であり、
+上記 MIT ライセンスの Copyright 表示が及ぶ独自の著作物ではない。
