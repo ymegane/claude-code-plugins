@@ -16,22 +16,24 @@ cg_session_id() {
   printf '%s' "$1" | jq -r '.session_id // empty' 2>/dev/null
 }
 
-# additionalContext を UserPromptSubmit の出力形式で標準出力へ書く。
+# additionalContext を hook の出力形式で標準出力へ書く。
 # 第 2 引数を渡すと systemMessage としてユーザーの画面にも 1 行出す。
 # additionalContext はモデルにしか届かないので、hook が動いた事実を人が知るにはこちらが要る。
+# 第 3 引数は hookEventName。Stop から呼ぶときは "Stop" を渡す。
 cg_emit_context() {
+  local event=${3:-UserPromptSubmit}
   if [ -n "${2:-}" ]; then
-    jq -n --arg ctx "$1" --arg msg "$2" '{
+    jq -n --arg ctx "$1" --arg msg "$2" --arg ev "$event" '{
       hookSpecificOutput: {
-        hookEventName: "UserPromptSubmit",
+        hookEventName: $ev,
         additionalContext: $ctx
       },
       systemMessage: $msg
     }'
   else
-    jq -n --arg ctx "$1" '{
+    jq -n --arg ctx "$1" --arg ev "$event" '{
       hookSpecificOutput: {
-        hookEventName: "UserPromptSubmit",
+        hookEventName: $ev,
         additionalContext: $ctx
       }
     }'

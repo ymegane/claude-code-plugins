@@ -12,7 +12,7 @@
     {
       "name": "context-guard",
       "description": "コンテキスト圧縮に備えて、重要事項の memory 退避・transcript バックアップ・圧縮後の復帰誘導を行う。",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "source": "./context-guard"
     },
     {

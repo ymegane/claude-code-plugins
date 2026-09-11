@@ -1,6 +1,14 @@
 #!/bin/bash
-# UserPromptSubmit hook: コンテキスト使用率が閾値を超えたら、圧縮で失われると困る事項を
-# memory へ退避するよう指示する。
+# Stop hook: 応答が終わった時点でコンテキスト使用率を見て、閾値を超えていたら
+# 圧縮で失われると困る事項を memory へ退避させてから停止させる。
+#
+# UserPromptSubmit ではなく Stop で促す理由: 依頼の直前に割り込むと、退避が終わるまで
+# ユーザーの依頼が後回しになり、そのぶん圧縮も先送りになる。作業が一段落した Stop なら、
+# 退避を終えた直後にそのまま /compact へ移れる。
+#
+# 会話の継続は decision: "block" ではなく additionalContext で行う。ループ保護
+# （stop_hook_active と 8 回連続の上限）は同じだが、transcript には hook エラーではなく
+# Stop hook feedback として出る。退避の指示は設計どおりの動作であって異常ではない。
 #
 # 使用率の取得経路: hook の stdin には context_window が渡らないため、毎ターン走る statusline が
 # 書き出す `<session_id>.pct` を読む（組み込み方は context-guard/README.md）。
@@ -11,6 +19,9 @@
 # 圧縮を経ずに使用率が下がった場合の保険として、再武装閾値でも消す。
 # さらに、閾値を超えたまま step 分だけ悪化したら、圧縮を待たずにもう一度促す
 # （80% で促してから 89% まで上がるような長いセッションが無音になるのを防ぐ）。
+#
+# ユーザーが Ctrl+C で中断したターンでは Stop 自体が発火しない。その回は促さず、次に
+# 応答が終わったときに拾う。
 #
 # 環境変数:
 #   CONTEXT_GUARD_PCT       発火する使用率（既定 80）
@@ -27,6 +38,13 @@ input=$(cat)
 
 [ "${CONTEXT_GUARD_DISABLE:-0}" = "1" ] && exit 0
 command -v jq >/dev/null 2>&1 || exit 0
+
+# この hook が既に会話を継続させている。ここで再度促すと止まらなくなる。
+[ "$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/dev/null)" = "true" ] && exit 0
+
+# バックグラウンド作業の完了待ちで止まっているだけなら、まだ区切りではない。
+bg_count=$(printf '%s' "$input" | jq -r '(.background_tasks // []) | length' 2>/dev/null)
+[ "${bg_count:-0}" = "0" ] || exit 0
 
 threshold=${CONTEXT_GUARD_PCT:-80}
 rearm=${CONTEXT_GUARD_REARM_PCT:-$(( threshold - 15 ))}
@@ -80,7 +98,7 @@ fi
 cg_emit_context "$(cat <<EOF
 ${headline}
 
-ユーザーの依頼に取りかかる前に、圧縮で失われると困る事項を memory へ退避してください。${memory_hint}
+作業が一段落したこのタイミングで、圧縮で失われると困る事項を memory へ退避してください。${memory_hint}
 
 書き出す対象は、このセッションで新たに確定したもの（要約すれば復元できる話ではなく、失うと調べ直しになるもの）に限ります。
 
@@ -89,8 +107,9 @@ ${headline}
 - 未解決の論点、次にやること、途中で保留した作業
 - 参照した Jira / PR / ファイルパスなどの座標
 
-退避が済んだら、何をどのファイルへ書いたかを 1 行で述べ、区切りのよいところで \`/compact\` を実行できることをユーザーに伝えてください（圧縮の直前には transcript が自動でバックアップされます）。そのうえで中断した作業を続けてください。
-すでに退避済みで新しく書くことが無ければ、その旨を 1 行述べて作業を続けて構いません。
+退避が済んだら、何をどのファイルへ書いたかを 1 行で述べ、いま \`/compact\` を実行できることをユーザーに伝えてください（圧縮の直前には transcript が自動でバックアップされます）。
+退避の報告だけで終えてください。直前のターンで完了した作業の続きを、ここから新しく始めないでください。
+すでに退避済みで新しく書くことが無ければ、その旨を 1 行述べて終えて構いません。
 EOF
-)" "context-guard: ctx ${pct}% — 重要事項の退避を指示しました"
+)" "context-guard: ctx ${pct}% — 退避を指示しました（完了後 /compact 可）" "Stop"
 exit 0

@@ -9,12 +9,14 @@
             "timeout": 5
           }
         ]
-      },
+      }
+    ],
+    "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/userpromptsubmit-context-guard.sh\"",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/stop-context-guard.sh\"",
             "timeout": 5,
             "statusMessage": "コンテキスト使用率を確認中..."
           }

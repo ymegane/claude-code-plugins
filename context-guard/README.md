@@ -8,11 +8,15 @@
 
 | タイミング | 動作 |
 |---|---|
-| 使用率が閾値（既定 80%）に達した最初のプロンプト | 決定事項・実測値・未解決の論点を memory へ退避するよう指示を注入する |
+| 使用率が閾値（既定 80%）に達したあと、応答が終わった時点（Stop） | 決定事項・実測値・未解決の論点を memory へ退避するよう指示を注入し、退避を終えてから停止させる |
 | 圧縮の直前（PreCompact） | transcript を `~/.claude/backups/context-guard/` へコピーする（セッションごと 20 世代） |
 | 圧縮の直後（PostCompact → 次のプロンプト） | memory と生ログの場所を示し、「要約は記録であって指示ではない」「原本が正」を伝える |
 
-hook が動いたことは `systemMessage` でユーザーの画面にも 1 行出る（`additionalContext` はモデルにしか届かないため）。退避を終えた Claude は、書き出し先を 1 行で報告し、区切りのよいところで `/compact` を実行できることをユーザーに伝える。
+hook が動いたことは `systemMessage` でユーザーの画面にも 1 行出る（`additionalContext` はモデルにしか届かないため）。退避を終えた Claude は、書き出し先を 1 行で報告し、いま `/compact` を実行できることをユーザーに伝えて停止する。
+
+退避を促すのは応答が終わった Stop の時点であって、依頼を受け取った時点ではない。依頼の直前に割り込むと、退避が終わるまでユーザーの依頼が後回しになり、そのぶん圧縮も先送りになる。作業が一段落してから促せば、退避の完了と同時に `/compact` へ移れる。
+
+会話の継続には `decision: "block"` ではなく `hookSpecificOutput.additionalContext` を使う。ループ保護（`stop_hook_active` と 8 回連続の上限）は同じだが、transcript には hook エラーではなく Stop hook feedback として出る。退避の指示は設計どおりの動作であって異常ではない。
 
 退避そのものはセッションの Claude 自身が行う。別プロセスの LLM に要約させるわけではないので、そのターンの作業は一度中断する代わりに、退避先はプロジェクトの memory になり次のセッションから読める。
 
@@ -51,6 +55,12 @@ ls "${TMPDIR}/claude-context-guard/"   # <session_id>.pct が見えれば OK
 
 一度促したあとは黙るが、閾値を超えたまま `CONTEXT_GUARD_STEP_PCT` 分だけ悪化すると、圧縮を待たずにもう一度促す（既定なら 80% → 90% → 100%）。長いセッションで 80% から 89% まで上がるあいだ無音になるのを防ぐための挙動。
 
+閾値を超えていても、次の場合は促さない。
+
+- ユーザーが Ctrl+C で中断したターン（Stop 自体が発火しない）。次に応答が終わったときに拾う
+- バックグラウンド作業の完了待ちで止まっているだけのとき（`background_tasks` が空でない）。まだ区切りではないため
+- この hook が既に会話を継続させているとき（`stop_hook_active` が true）
+
 `settings.json` の `env` に書ける。
 
 ## マーカーファイル
@@ -59,8 +69,8 @@ ls "${TMPDIR}/claude-context-guard/"   # <session_id>.pct が見えれば OK
 
 | ファイル | 書き手 | 読み手 | 役割 |
 |---|---|---|---|
-| `<session_id>.pct` | statusline | 退避 hook | 使用率。唯一の外部依存 |
-| `<session_id>.notified` | 退避 hook | 退避 hook | 通知したときの使用率。次に促すかの判定に使い、PostCompact か再武装閾値で消える |
+| `<session_id>.pct` | statusline | Stop hook | 使用率。唯一の外部依存 |
+| `<session_id>.notified` | Stop hook | Stop hook | 通知したときの使用率。次に促すかの判定に使い、PostCompact か再武装閾値で消える |
 | `<session_id>.compacted` | PostCompact hook | 復帰 hook | 圧縮が起きた印。次のプロンプトで消費される |
 
 hook はすべて fail-open で書いてある。マーカーが無い・壊れている・書けない場合は黙って通し、プロンプトや圧縮を止めない。
