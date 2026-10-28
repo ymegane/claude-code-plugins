@@ -1,0 +1,46 @@
+{
+  "defaults": {
+    "launch": {
+      "cli": "claude",
+      "permission_mode": "auto"
+    }
+  },
+  "repos": {
+    "your-org/your-repo": {
+      "launch": {
+        "cli": "claude-with-creds",
+        "approval_hint": "認証情報の読み込みで承認ダイアログが出るので承認をお願いします",
+        "start_timeout": 1800
+      },
+      "health": {
+        "require_env": ["MY_WRAPPER_CRED"]
+      },
+      "session_manager": {
+        "notes": "your-repo/session-manager.md",
+        "exclude_title": "^\\[routine\\]",
+        "requests": {
+          "start": "@your-repo/sm-start.md"
+        }
+      },
+      "review_manager": {
+        "notes": "your-repo/review-manager.md",
+        "slots": { "count": 2 },
+        "kinds": {
+          "review": { "command": "/review-pr {n}", "template": "@your-repo/rm-review.md" },
+          "re-review": { "command": "/review-pr --re {n}", "template": "@your-repo/rm-review.md" },
+          "dependabot": {
+            "command": "/review-pr {n}", "template": "@your-repo/rm-dependabot.md",
+            "locking": true, "require_review_request": false, "check_target": true
+          }
+        },
+        "dependabot": {
+          "enabled": true,
+          "kind": "dependabot",
+          "ready_check": "dependabot-review",
+          "report": { "author": "github-actions", "marker": "Final action" }
+        },
+        "dedicated_patterns": ["#{n}", "review-pr-{n}"]
+      }
+    }
+  }
+}

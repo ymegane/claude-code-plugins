@@ -32,6 +32,12 @@
       "description": "設計判断のセカンドオピニオンや難航したデバッグの深掘り診断を、助言専任のサブエージェントに相談するスキルとエージェント定義。",
       "version": "0.1.0",
       "source": "./fable-advisor"
+    },
+    {
+      "name": "herdr-dispatch",
+      "description": "Herdr のペインに常駐させた Claude Code セッションへ、受けたレビュー依頼や自分の PR への指摘対応、中断したセッションの再開を振り分ける manager の skill 2 本。",
+      "version": "0.1.0",
+      "source": "./herdr-dispatch"
     }
   ]
 }

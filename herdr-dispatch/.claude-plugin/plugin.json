@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "herdr-dispatch",
+  "version": "0.1.0",
+  "description": "Herdr のペインに常駐させた Claude Code セッションへ、受けたレビュー依頼や自分の PR への指摘対応、中断したセッションの再開を振り分ける manager の skill 2 本。",
+  "author": {
+    "name": "ymegane"
+  },
+  "homepage": "https://github.com/ymegane/claude-code-plugins/tree/main/herdr-dispatch",
+  "repository": "https://github.com/ymegane/claude-code-plugins",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "herdr",
+    "code-review",
+    "session"
+  ]
+}
