@@ -723,10 +723,15 @@ def poll_dependabot():
     if prs is None:
         print("WATCH_ERROR dependabot の PR 一覧を取れない", flush=True)
         return None
-    return [(f"dependabot:{pr['number']}@{pr['headRefOid']}",
-             f"DEPENDABOT #{pr['number']} head={pr['headRefOid'][:7]} "
-             f"report={'yes' if has_report(pr.get('comments', [])) else 'none'} title={util.quote_untrusted(pr.get('title'))}")
-            for pr in prs]
+    # 開いた直後の PR は report=none で届き、handoff はレポート待ちで止まる。head だけを既出の鍵にすると、
+    # レポートが付いても manager が起こされず待ち行列が進まないので、レポートの有無も鍵に含める
+    items = []
+    for pr in prs:
+        reported = has_report(pr.get("comments", []))
+        items.append((f"dependabot:{pr['number']}@{pr['headRefOid']}" + (":report" if reported else ""),
+                      f"DEPENDABOT #{pr['number']} head={pr['headRefOid'][:7]} "
+                      f"report={'yes' if reported else 'none'} title={util.quote_untrusted(pr.get('title'))}"))
+    return items
 
 
 def cmd_watch(args):
