@@ -42,7 +42,7 @@ BUILTIN = {
         "start_timeout": 1800,
         "approval_hint": None,
     },
-    "health": {"require_env": [], "check_mode": True},
+    "health": {"require_env": [], "check_mode": True, "check_version": True},
     "shell": {"prompt_regex": r"[%$#❯]\s*$"},
     "session_manager": {
         "notes": None,

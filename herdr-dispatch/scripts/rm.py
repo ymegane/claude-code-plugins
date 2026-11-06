@@ -95,6 +95,12 @@ def slot_health(slot, pmap=None):
                                 lc["permission_mode"] if hc["check_mode"] else None, pmap)
 
 
+def slot_version_gap(slot, pmap, installed):
+    if not slot["agent"] or not CFG.health("review_manager").get("check_version", True):
+        return None
+    return procs.version_gap(slot["pane_id"], pmap, installed)
+
+
 # ---- 対象の判定 ----
 
 def list_targets(out_path):
@@ -246,11 +252,13 @@ def cmd_status(args):
         slots, herdr_error = [], str(e)
     lk = lock_info()
     pmap = procs.claude_procs_by_pane()
+    installed = procs.installed_claude_version()
     rows = []
     for s in slots:
         text, sugg = screen.input_box(s["pane_id"]) if s["agent"] else ("", False)
         rows.append({**s, "assignment": st["assignments"].get(s["k"]), "kept": st["kept"].get(s["k"]),
-                     "health": slot_health(s, pmap), "typed": "" if sugg else text})
+                     "health": slot_health(s, pmap), "version_gap": slot_version_gap(s, pmap, installed),
+                     "typed": "" if sugg else text})
     title, extra = status_extra_lines()
     if args.json:
         print(json.dumps({"slots": None if herdr_error else rows, "herdr_error": herdr_error, "lock": lk,
@@ -288,6 +296,9 @@ def cmd_status(args):
         print(f"     resume: claude --resume {s['session']}")
         if s["health"]:
             print(f"     ⚠ 劣化: {' / '.join(s['health'])}")
+        if s["version_gap"]:
+            print(f"     ⚠ 古い版: {s['version_gap'][0]} で動いている（インストール済みは {s['version_gap'][1]}）。"
+                  f"空いたら rm.py restart {s['k']}")
         if s["typed"]:
             print(f"     入力欄（未送信）: {s['typed'][:80]}")
         if a and a.get("last_event"):
@@ -623,6 +634,7 @@ def cmd_sync(args):
 def check_slots(st, do_health, pmap):
     events = []
     seen = st["slot_seen"]
+    installed = procs.installed_claude_version() if do_health else None
     for s in discover_slots():
         k = s["k"]
         sseen = seen.setdefault(k, {})
@@ -644,6 +656,16 @@ def check_slots(st, do_health, pmap):
                 events.append(f"SLOT_DEGRADED k={k} {' / '.join(health)}")
             elif not health:
                 sseen.pop("degraded", None)
+            # 作業中に知らせても立ち上げ直せないので、空いた枠だけ知らせる
+            gap = slot_version_gap(s, pmap, installed)
+            free = (not st["assignments"].get(k) and k not in st["kept"]
+                    and info.get("agent_status") in ("idle", "done"))
+            vkey = f"{s['session']}:{gap[0]}->{gap[1]}" if gap else None
+            if gap and free and sseen.get("outdated") != vkey:
+                sseen["outdated"] = vkey
+                events.append(f"SLOT_OUTDATED k={k} running={gap[0]} installed={gap[1]}")
+            elif not gap:
+                sseen.pop("outdated", None)
 
         a = st["assignments"].get(k)
         # 残す指定の枠はユーザーが直接やり取りしているので、往復のたびに起こさない

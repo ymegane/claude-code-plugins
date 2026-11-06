@@ -44,6 +44,8 @@ claude plugin install herdr-dispatch@ymegane-plugins
 
 起動は `herdr pane run` でペインの対話シェルへコマンドを打ち込む。そのため、認証情報を環境に足してから claude を起動するラッパーを `cli` に書ける。Herdr の再起動やセッションの復元は素の `claude --resume` で起こすので、ラッパーが足した環境は消える。`health.require_env` にその環境変数の名前を書くと、消えたセッションを劣化として知らせる。
 
+`health.check_version`（既定 true）は review-manager の枠の Claude Code の版を見る。動いているプロセスの実行ファイル（`lsof` の txt）の `versions/<版>` と、PATH の `claude` の symlink の先を比べ、違えば空いた枠だけを `SLOT_OUTDATED` で知らせる。ネイティブ版の配置（`~/.local/share/claude/versions/<版>`）でないと版を読めず、何も知らせない。
+
 ### 依頼文
 
 review-manager の依頼文は `review_manager.kinds.<kind>` の `command` と `template` から作る。使えるプレースホルダは `{n}`（PR 番号）、`{head}`、`{kind}`、`{lock_started_at}`、`{report}`、`{viewer}`。`template` の本文は 1 行に詰めてから `（review-manager からの依頼。…）` の形で `command` の後ろに付く。

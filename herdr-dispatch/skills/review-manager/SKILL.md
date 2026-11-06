@@ -39,6 +39,7 @@ review session は枠（ペイン）ごとに 1 つ立ち上げて常駐させ�
 - **起動時のシェルの入力欄**: 枠のシェルの入力欄に文字が残っていると、`start` / `restart` は打ち込まずに「入力欄に文字が残っている」で止まる（つながって実行されるため）。ユーザーに伝えて空けてもらう。manager は消さない
 - **信頼確認**: `start` / `restart` が `BLOCKED stage=trust` を出したら、初めての cwd の信頼確認ダイアログなどでセッション ID が出ていない。画面を読んでユーザーへ伝え、答えてもらう。**manager は答えない**
 - **劣化**: Herdr の再起動やセッションの復元は素の `claude --resume` で起こすので、`launch.cli` のラッパーが環境に足したものと permission mode が消える。監視が `SLOT_DEGRADED` で知らせるので、作業中でなければユーザーに確認して `RM restart K`
+- **古い版**: Claude Code が自動更新されても、動いている枠は古い版のまま。監視が空いた枠だけを `SLOT_OUTDATED` で知らせ、`RM status` は「⚠ 古い版」と出す。劣化と違って handoff は止めない。立ち上げ直すかは notes の指示に従い、指示が無ければユーザーに確認して `RM restart K`（`--resume` なので会話は続く）
 - **空いている枠**: idle / done で、割り当ても「残す」指定も無い枠（`RM status` の「空き」）
 - **残す枠**: ユーザーが「#N の session は残して」と言ったら `RM keep K 理由`。`/clear` せず次を渡さない。ユーザーが枠のセッションと直接やり取りし始めたとき（入力欄にユーザーの未送信の文字がある、manager が送っていない往復で `SLOT_SETTLED` が届く）も同じく `keep` する。`keep` 中の枠には `SLOT_SETTLED` を出さない。「使っていい」と言われたら `RM unkeep K`
 - **入力欄の文字**: `/review-pr 12` のような文字が見えても、Claude Code の入力候補（dim 表示）のことがある。`RM check K` / `RM status` が見分ける
@@ -73,6 +74,7 @@ python3 -u <ベースディレクトリ>/../../scripts/rm.py watch --interval 30
 | `DEPENDABOT #N head=… report=yes\|none` | dependabot の PR（設定で有効なときだけ）。`RM queue add N --kind <dependabot.kind>` し、「dependabot の PR」の条件で渡す |
 | `SLOT_SETTLED k=K #N kind=… status=… action=…` | 割り当て中の枠が落ち着いた。「完了と停止の検知」へ |
 | `SLOT_DEGRADED k=K 理由` | 枠の劣化。ユーザーへ伝え、作業中でなければ `RM restart K` を提案する |
+| `SLOT_OUTDATED k=K running=… installed=…` | 空いた枠の Claude Code がインストール済みより古い。notes が許していれば `RM restart K`（`approval_hint` があれば先に知らせる）、無ければ提案する |
 | `LOCK_LOST started_at=…` | 割り当て中にロックが切れたか他者に取られた。ユーザーへ伝え、review session の投稿を止めるか判断を仰ぐ |
 | `WATCH_ERROR herdr_unreachable …` | Herdr に届かない。届かない間、監視は枠の判定を止めている。3 回続くと終了して届く。sandbox の中で張っていれば外で張り直し、それ以外はユーザーへ報告する |
 | `TARGET_ERROR` / `WATCH_ERROR`（上記以外） | 判定・取得の失敗（WATCH_ERROR は 3 回続いたときだけ終了して届く）。ユーザーへ報告する |

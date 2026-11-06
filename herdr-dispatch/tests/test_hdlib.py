@@ -179,6 +179,27 @@ class SandboxTest(unittest.TestCase):
             self.assertIsNone(procs.claude_procs_by_pane())
             self.assertEqual(procs.health_reasons("p1", ["SOME_ENV"]), [])
 
+    def test_version_gap(self):
+        pmap = {"p1": {"pid": "1", "env_names": set(), "version": "2.1.318"}}
+        self.assertEqual(procs.version_gap("p1", pmap, "2.1.319"), ("2.1.318", "2.1.319"))
+        self.assertIsNone(procs.version_gap("p1", pmap, "2.1.318"))
+        # 読めない版は揃っているとみなす（見えないだけで古いと報じない）
+        self.assertIsNone(procs.version_gap("p1", pmap, None))
+        self.assertIsNone(procs.version_gap("p1", {"p1": {"version": None}}, "2.1.319"))
+        self.assertIsNone(procs.version_gap("p1", None, "2.1.319"))
+
+    def test_installed_version_from_symlink_target(self):
+        with tempfile.TemporaryDirectory() as d:
+            real = os.path.join(d, "versions", "2.1.319")
+            os.makedirs(os.path.dirname(real))
+            open(real, "w").close()
+            link = os.path.join(d, "claude")
+            os.symlink(real, link)
+            with mock.patch.object(procs.shutil, "which", return_value=link):
+                self.assertEqual(procs.installed_claude_version(), "2.1.319")
+        with mock.patch.object(procs.shutil, "which", return_value="/opt/node/bin/claude"):
+            self.assertIsNone(procs.installed_claude_version())
+
 
 class TruncatedOutputTest(unittest.TestCase):
     """ps は長い引数をバイト数で切るので、日本語の依頼文が文字の途中で切れた行が来る。"""
@@ -202,11 +223,13 @@ class TruncatedOutputTest(unittest.TestCase):
         run = self.fake_run({
             ("ps", "-ax"): b"  123 /opt/bin/claude --prompt " + self.CUT + b"\n",
             ("ps", "eww"): b"/opt/bin/claude --prompt " + self.CUT + b" HERDR_PANE_ID=w1:p1 GOOGLE_X=1\n",
+            ("lsof", "-a"): b"p123\nftxt\nn/Users/u/.local/share/claude/versions/2.1.318\nftxt\nn/usr/lib/dyld\n",
         })
         with mock.patch.object(procs.subprocess, "run", run):
             got = procs.claude_procs_by_pane()
         self.assertEqual(got["w1:p1"]["pid"], "123")
         self.assertIn("GOOGLE_X", got["w1:p1"]["env_names"])
+        self.assertEqual(got["w1:p1"]["version"], "2.1.318")
 
     def test_run_and_supervisor_survive_cut_multibyte(self):
         run = self.fake_run({("git", "log"): b"x " + self.CUT + b"\n",
