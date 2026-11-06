@@ -200,6 +200,23 @@ class SandboxTest(unittest.TestCase):
         with mock.patch.object(procs.shutil, "which", return_value="/opt/node/bin/claude"):
             self.assertIsNone(procs.installed_claude_version())
 
+    def test_self_outdated_once_per_pair(self):
+        pmap = {"pC": {"version": "2.1.318"}}
+        live = {"sid-1": {"pane_id": "pC"}, "sid-2": {"pane_id": "pG"}}
+        st = {}
+        with mock.patch.dict(os.environ, {"HERDR_PANE_ID": "pC"}):
+            self.assertEqual(supervisor.self_outdated_events(st, pmap, "2.1.319", "claude-dev", live),
+                             ['MANAGER_OUTDATED running=2.1.318 installed=2.1.319 '
+                              'restart="/exit → claude-dev --resume sid-1"'])
+            self.assertEqual(supervisor.self_outdated_events(st, pmap, "2.1.319", "claude-dev", live), [])
+            # 揃ったら記録を消し、次の更新でまた知らせる
+            self.assertEqual(supervisor.self_outdated_events(st, {"pC": {"version": "2.1.319"}}, "2.1.319",
+                                                             "claude-dev", live), [])
+            self.assertNotIn("self_outdated", st)
+        with mock.patch.dict(os.environ):
+            os.environ.pop("HERDR_PANE_ID", None)
+            self.assertEqual(supervisor.self_outdated_events({}, pmap, "2.1.319", "claude-dev", live), [])
+
 
 class TruncatedOutputTest(unittest.TestCase):
     """ps は長い引数をバイト数で切るので、日本語の依頼文が文字の途中で切れた行が来る。"""

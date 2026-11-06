@@ -4,12 +4,13 @@
 manager のセッションが再起動すると前の監視が取り残されて 2 本が並び、既出の記録とイベントが二重になるので、
 新しい監視は前の監視を止めて引き継ぐ。
 """
+import json
 import os
 import signal
 import subprocess
 import sys
 
-from . import util
+from . import herdr, procs, util
 
 
 def take_over(st, markers):
@@ -72,3 +73,43 @@ def status_line(st, stale_sec=600):
     d = util.parse_ts(hb)
     alive = bool(d) and (util.now() - d).total_seconds() < stale_sec and pid_alive(sup.get("pid"))
     return f"監視: {'稼働中' if alive else '止まっている可能性'}（最終 {util.local_hm(hb)}・pid {sup.get('pid', '-')}）"
+
+
+def self_version(pmap, installed, live=None):
+    """manager 自身（このプロセスの HERDR_PANE_ID のペイン）の (動いている版, インストール済みの版, session id)。
+    揃っているか読めなければ None。session id はペインから引けなければ None。"""
+    pane = os.environ.get("HERDR_PANE_ID")
+    gap = procs.version_gap(pane, pmap, installed) if pane else None
+    if not gap:
+        return None
+    live = herdr.live_sessions() if live is None else live
+    sid = next((s for s, v in live.items() if v.get("pane_id") == pane), None)
+    return gap[0], gap[1], sid
+
+
+def restart_hint(cli, sid):
+    return f"/exit → {cli} --resume {sid or '<session id>'}"
+
+
+def self_outdated_events(st, pmap, installed, cli, live=None):
+    """manager 自身の古い版を、版の組ごとに 1 回だけ知らせる。
+    manager は自分を立ち上げ直さない。/exit から --resume で戻るまでの間は監視を張り直す者がいないので、
+    途中で止まると誰も気づけない。手順を添えてユーザーに任せる。"""
+    v = self_version(pmap, installed, live)
+    if not v:
+        st.pop("self_outdated", None)
+        return []
+    key = f"{v[2]}:{v[0]}->{v[1]}"
+    if st.get("self_outdated") == key:
+        return []
+    st["self_outdated"] = key
+    return [f"MANAGER_OUTDATED running={v[0]} installed={v[1]} "
+            f"restart={json.dumps(restart_hint(cli, v[2]), ensure_ascii=False)}"]
+
+
+def self_version_line(pmap, installed, cli, live=None):
+    v = self_version(pmap, installed, live)
+    if not v:
+        return None
+    return (f"⚠ manager 自身が古い版: {v[0]} で動いている（インストール済みは {v[1]}）。"
+            f"手の空いたときに {restart_hint(cli, v[2])}")

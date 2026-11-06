@@ -44,7 +44,7 @@ CFG = None
 
 
 def store(args):
-    return state.Store(args.state_dir, {"launched": {}, "degraded": {}, "recent": []})
+    return state.Store(args.state_dir, {"launched": {}, "degraded": {}, "outdated": {}, "recent": []})
 
 
 def finish(st, sid, outcome):
@@ -795,18 +795,24 @@ def check_assignments(st, live):
     return events
 
 
-def check_health(st, live):
-    """restore / start で起こしたセッションの劣化（Herdr の再起動で素の claude --resume になった など）。"""
+def check_version_enabled():
+    return CFG.health("session_manager").get("check_version", True)
+
+
+def check_health(st, live, pmap=None):
+    """restore / start で起こしたセッションの劣化（Herdr の再起動で素の claude --resume になった など）と古い版。"""
     events = []
     cutoff = util.now() - dt.timedelta(days=LAUNCHED_KEEP_DAYS)
     for sid in [s for s, l in st["launched"].items() if (parse_ts(l.get("at")) or cutoff) < cutoff]:
         del st["launched"][sid]
         st["degraded"].pop(sid, None)
+        st["outdated"].pop(sid, None)
     targets = [(sid, l, live[sid]) for sid, l in st["launched"].items()
                if sid in live and st["assignments"].get(sid, {}).get("phase") not in ("starting", "launching")]
     if not targets:
         return events
-    pmap = procs.claude_procs_by_pane()
+    pmap = procs.claude_procs_by_pane() if pmap is None else pmap
+    installed = procs.installed_claude_version() if check_version_enabled() else None
     for sid, l, lv in targets:
         pane = lv["pane_id"]
         l["pane"] = pane
@@ -823,6 +829,16 @@ def check_health(st, live):
             st["degraded"][sid] = key
         else:
             st["degraded"].pop(sid, None)
+        # ユーザーの作業セッションなので知らせるだけにする。立ち上げ直すとバックグラウンドのシェル（emulator など）も消える。
+        # 作業中に知らせても立ち上げ直せないので、idle / done のときだけ知らせる
+        gap = procs.version_gap(pane, pmap, installed)
+        vkey = f"{gap[0]}->{gap[1]}" if gap else None
+        if gap and lv.get("agent_status") in ("idle", "done") and st["outdated"].get(sid) != vkey:
+            st["outdated"][sid] = vkey
+            events.append(f"OUTDATED session={sid[:8]} pane={pane} name={l.get('name')} "
+                          f"running={gap[0]} installed={gap[1]}")
+        elif not gap:
+            st["outdated"].pop(sid, None)
     return events
 
 
@@ -881,8 +897,12 @@ def cmd_watch(args):
                 if live is not None:
                     events += check_assignments(st, live)
                     if do_health:
-                        events += check_health(st, live)
+                        pmap = procs.claude_procs_by_pane()
+                        events += check_health(st, live, pmap)
                         events += check_queue(st)
+                        if check_version_enabled():
+                            events += supervisor.self_outdated_events(
+                                st, pmap, procs.installed_claude_version(), CFG.launch("session_manager")["cli"], live)
         if time.time() >= next_poll:
             next_poll = time.time() + max(args.interval, 60)
             items = poll(args, me)
@@ -915,6 +935,13 @@ def cmd_status(args):
         return
     print(f"session-manager 状況（{local_hm(iso())}・{CFG.slug}）")
     print(supervisor.status_line(st, max(args.stale_sec, 120)))
+    launched = [(sid, l) for sid, l in st["launched"].items() if sid in live]
+    pmap = installed = None
+    if check_version_enabled() and not herdr_error:
+        pmap, installed = procs.claude_procs_by_pane(), procs.installed_claude_version()
+        line = supervisor.self_version_line(pmap, installed, CFG.launch("session_manager")["cli"], live)
+        if line:
+            print(line)
     if herdr_error:
         print(f"⚠ Herdr に届かない（{herdr_error}）。ペインの状態は不明。sandbox の中なら外で実行し直す")
     print("割り当て:" + ("" if st["assignments"] else " なし"))
@@ -933,7 +960,6 @@ def cmd_status(args):
             text, sugg = screen.input_box(pane)
             if text and not sugg:
                 print(f"     入力欄（未送信）: {text[:80]}")
-    launched = [(sid, l) for sid, l in st["launched"].items() if sid in live]
     print("起こしたセッション（劣化の監視対象・ペインで動いているもの）:"
           + (" 不明" if herdr_error else "" if launched else " なし"))
     for sid, l in launched:
@@ -941,6 +967,9 @@ def cmd_status(args):
         print(f"  {l.get('name')} {lv['pane_id']} {lv['agent_status']}  {l.get('title') or ''}  resume: {sid}")
         if st["degraded"].get(sid):
             print(f"     ⚠ 劣化: {st['degraded'][sid]}")
+        gap = procs.version_gap(lv["pane_id"], pmap, installed)
+        if gap:
+            print(f"     ⚠ 古い版: {gap[0]} で動いている（インストール済みは {gap[1]}）。手の空いたときに立ち上げ直す")
     print("待ち行列:" + ("" if st["queue"] else " なし"))
     for q in st["queue"]:
         pr = f"#{q['pr']} " if q.get("pr") else ""

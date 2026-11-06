@@ -95,8 +95,12 @@ def slot_health(slot, pmap=None):
                                 lc["permission_mode"] if hc["check_mode"] else None, pmap)
 
 
+def check_version_enabled():
+    return CFG.health("review_manager").get("check_version", True)
+
+
 def slot_version_gap(slot, pmap, installed):
-    if not slot["agent"] or not CFG.health("review_manager").get("check_version", True):
+    if not slot["agent"] or not check_version_enabled():
         return None
     return procs.version_gap(slot["pane_id"], pmap, installed)
 
@@ -267,6 +271,10 @@ def cmd_status(args):
         return
     print(f"review-manager 状況（{local_hm(iso())}・{CFG.slug}）")
     print(supervisor.status_line(st))
+    if check_version_enabled() and not herdr_error:
+        line = supervisor.self_version_line(pmap, installed, CFG.launch("review_manager")["cli"])
+        if line:
+            print(line)
     if lock_cfg():
         if lk:
             left = f"残り {lk['minutes_left'] // 60}h{lk['minutes_left'] % 60:02d}m" if lk["live"] else "期限切れ"
@@ -777,6 +785,9 @@ def cmd_watch(args):
                 return
             try:
                 events += check_slots(st, do_health, pmap)
+                if do_health and check_version_enabled():
+                    events += supervisor.self_outdated_events(st, pmap, procs.installed_claude_version(),
+                                                              CFG.launch("review_manager")["cli"])
                 herdr_errors = 0
             except herdr.Unreachable as e:
                 unreachable = e

@@ -374,5 +374,26 @@ class HerdrUnreachableTest(unittest.TestCase):
         self.assertIn("#7 review", out)
 
 
+class SessionOutdatedTest(unittest.TestCase):
+    """起こしたセッションの古い版は、作業中には知らせず、版の組ごとに 1 回だけ知らせる。"""
+
+    def setUp(self):
+        sm.CFG = rm.CFG = make_cfg()
+
+    def test_outdated_only_when_idle_and_once(self):
+        sid = "sid-aaaaaaaa1"
+        st = {"launched": {sid: {"pane": "p1", "name": "s1", "at": sm.iso()}},
+              "degraded": {}, "outdated": {}, "assignments": {}}
+        pmap = {"p1": {"version": "2.1.318"}}
+        with mock.patch.object(herdr, "agent_get", lambda p: {"name": "s1"}), \
+                mock.patch.object(sm.procs, "health_reasons", lambda *a, **k: []), \
+                mock.patch.object(sm.procs, "installed_claude_version", lambda: "2.1.319"):
+            self.assertEqual(sm.check_health(st, {sid: {"pane_id": "p1", "agent_status": "working"}}, pmap), [])
+            idle = {sid: {"pane_id": "p1", "agent_status": "idle"}}
+            self.assertEqual(sm.check_health(st, idle, pmap),
+                             ["OUTDATED session=sid-aaaa pane=p1 name=s1 running=2.1.318 installed=2.1.319"])
+            self.assertEqual(sm.check_health(st, idle, pmap), [])
+
+
 if __name__ == "__main__":
     unittest.main()

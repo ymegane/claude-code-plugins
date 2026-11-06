@@ -47,6 +47,8 @@ argument-hint: "[監視間隔の秒数（既定 300）]"
 | `SETTLED … status=idle\|done` | 依頼したターンが終わった。`herdr agent read <pane> --source recent-unwrapped --lines 60` で末尾を読み、結論、ペイン、`claude --resume <id>` を報告する。割り当ては `sm.py` が外した。以降はユーザーがそのペインで引き継ぐ。セッションがユーザーに判断を求めていれば `sm.py ask add` で記録する |
 | `SETTLED … status=blocked` | 承認ダイアログか質問で止まった（`stage=startup` は再開時のダイアログ）。末尾を読んで PushNotification とチャットでユーザーへ伝え、`sm.py ask add` で記録する。**manager は答えない**。割り当ては残り、ユーザーが答えて次に止まったときにまた出る |
 | `DEGRADED session=… reasons=…` | restore / start で起こしたセッションが、Herdr の再起動などで素の `claude --resume` で起き直した（`health.require_env` の環境変数が無い、permission mode が違う、プロセスが見つからない）。agent 名の欠落は `sm.py` が付け直す。PushNotification とチャットで伝える。起こし直すとユーザーの作業を中断するので、manager は自分で起こし直さない |
+| `OUTDATED session=… pane=… running=… installed=…` | restore / start で起こしたセッションの Claude Code がインストール済みより古い（idle / done のときだけ、版の組ごとに 1 回）。チャットで伝えるだけにする。起こし直すとバックグラウンドのシェル（emulator など）も消えるので、manager は起こし直さない。`sm.py status` は「⚠ 古い版」と出す |
+| `MANAGER_OUTDATED running=… installed=… restart="…"` | manager 自身の Claude Code が古い。`restart` の手順を添えてユーザーへ伝え、手の空いたときに打ってもらう（manager は自分を立ち上げ直さない）。戻ったら `sm.py status` で状況を取り戻し、監視を張り直す |
 | `QUEUE_READY panes=… queue=W…` | 空き枠を待っていた依頼を出せる。`sm.py status` の待ち行列にある `cmd` をそのまま実行する |
 | `RESTORED … stage=trust` | `--request none` の起動が信頼確認を越えてセッション ID が出た。報告する |
 | `MISMATCH … got=<id>` | 信頼確認の後に、期待と違うセッションがペインに出た。報告する |

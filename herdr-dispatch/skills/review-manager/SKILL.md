@@ -75,6 +75,7 @@ python3 -u <ベースディレクトリ>/../../scripts/rm.py watch --interval 30
 | `SLOT_SETTLED k=K #N kind=… status=… action=…` | 割り当て中の枠が落ち着いた。「完了と停止の検知」へ |
 | `SLOT_DEGRADED k=K 理由` | 枠の劣化。ユーザーへ伝え、作業中でなければ `RM restart K` を提案する |
 | `SLOT_OUTDATED k=K running=… installed=…` | 空いた枠の Claude Code がインストール済みより古い。notes が許していれば `RM restart K`（`approval_hint` があれば先に知らせる）、無ければ提案する |
+| `MANAGER_OUTDATED running=… installed=… restart="…"` | manager 自身の Claude Code が古い。`RM status` も「⚠ manager 自身が古い版」と出す。manager は自分を立ち上げ直さない（`/exit` から戻るまで監視を張る者がいない）。`restart` の手順を添えてユーザーへ伝え、手の空いたときに打ってもらう。戻ったら `RM status` で状況を取り戻し、監視を張り直す |
 | `LOCK_LOST started_at=…` | 割り当て中にロックが切れたか他者に取られた。ユーザーへ伝え、review session の投稿を止めるか判断を仰ぐ |
 | `WATCH_ERROR herdr_unreachable …` | Herdr に届かない。届かない間、監視は枠の判定を止めている。3 回続くと終了して届く。sandbox の中で張っていれば外で張り直し、それ以外はユーザーへ報告する |
 | `TARGET_ERROR` / `WATCH_ERROR`（上記以外） | 判定・取得の失敗（WATCH_ERROR は 3 回続いたときだけ終了して届く）。ユーザーへ報告する |
