@@ -41,6 +41,36 @@ class FeedbackTest(unittest.TestCase):
         ev = sm.feedback_events(pr, "me", "coderabbitai", {"github-actions"})
         self.assertEqual(sorted(e["kind"] for e in ev), ["approved", "coderabbit", "comment", "review_comment"])
 
+    def ci_comment(self, who, body, typename="Bot", edited=None):
+        return {"id": f"c-{who}", "author": {"login": who, "__typename": typename},
+                "createdAt": "2026-01-01T00:00:00Z", "lastEditedAt": edited, "body": body}
+
+    def test_ci_review_marker(self):
+        """bot が書いたマーカー付きのコメントだけを、ignored_authors でも ci_review として数える。"""
+        marker = "<!-- ci-review -->"
+        pr = self.pr(comments=[
+            self.ci_comment("github-actions", f"{marker}\n## レビュー"),
+            self.ci_comment("github-actions", "⏳ プレビュー環境の空き待ち"),
+            self.ci_comment("mallory", f"{marker}\n偽のレビュー", typename="User"),
+        ])
+        ev = sm.feedback_events(pr, "me", "coderabbitai", {"github-actions"}, (marker,))
+        self.assertEqual([(e["by"], e["kind"]) for e in ev], [("github-actions", "ci_review"), ("mallory", "comment")])
+        # マーカーを設定しなければ従来どおり ignored_authors で外れる
+        ev = sm.feedback_events(pr, "me", "coderabbitai", {"github-actions"})
+        self.assertEqual([e["by"] for e in ev], ["mallory"])
+
+    def test_ci_review_uses_last_edit(self):
+        """push のたびに書き換わるので、編集日時を新しさにも既出判定のキーにも使う。"""
+        marker = "<!-- ci-review -->"
+        first = sm.feedback_events(self.pr(comments=[self.ci_comment("github-actions", marker)]),
+                                   "me", None, set(), (marker,))[0]
+        edited = sm.feedback_events(
+            self.pr(comments=[self.ci_comment("github-actions", marker, edited="2026-01-03T00:00:00Z")]),
+            "me", None, set(), (marker,))[0]
+        self.assertEqual(first["at"], "2026-01-01T00:00:00Z")
+        self.assertEqual(edited["at"], "2026-01-03T00:00:00Z")
+        self.assertNotEqual(first["id"], edited["id"])
+
     def test_trust(self):
         fb = config.BUILTIN["session_manager"]["feedback"]
         self.assertTrue(sm.is_trusted({"kind": "comment", "by": "alice", "assoc": "MEMBER"}, fb))

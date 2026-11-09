@@ -70,6 +70,7 @@ session-manager の watch は、自分の open PR に届いたレビューとコ
 | `trusted_authors` | `[]` | 上記以外で復元のきっかけにする作者のログイン名 |
 | `coderabbit_login` | `coderabbitai` | CodeRabbit のログイン名。新しい指摘がある review だけを数え、作者の関係は問わない |
 | `ignored_authors` | bot 数種 | 復元のきっかけに数えない作者（`untrusted=` の数には入る） |
+| `review_comment_markers` | `[]` | CI のレビューのコメントの先頭に付く文字列（例 `<!-- strap-claude-code-review -->`）。bot が書いた、これで始まる会話欄のコメントは、作者が `ignored_authors` にいても `kind=ci_review` として数える。CI が同じコメントを書き換える運用に合わせ、最後の編集日時で新しさを見る |
 
 これ以外の作者の書き込みは `UNTRUSTED_FEEDBACK` として報告だけする。bot（GitHub App）はリポジトリの管理者が入れたものとして信頼する。復元したセッションは PR の会話を gh でまとめて読むので、信頼できる作者のレビューで復元するときでも、PR に外部の人の書き込みがあれば（`FEEDBACK` 行の `untrusted=` が 1 以上。review の state や本文の有無、`ignored_authors` を問わず全件で数える。レビューかコメントが 50 件を超えて数えきれないときは `unknown` で、同じ扱い）`default` mode で起動し、操作のたびにユーザーの承認を求めさせる。外部の書き込みが無くても、前回の permission mode が `bypassPermissions` なら引き継がず、`launch.permission_mode` で起動する。
 

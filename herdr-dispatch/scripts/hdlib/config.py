@@ -54,6 +54,7 @@ BUILTIN = {
             "ignored_authors": ["github-actions", "dependabot", "vercel", "copilot-pull-request-reviewer"],
             "trusted_associations": ["OWNER", "MEMBER", "COLLABORATOR"],
             "trusted_authors": [],
+            "review_comment_markers": [],
         },
         "requests": {"review": SM_REVIEW, "resume": SM_RESUME, "start": SM_START},
     },

@@ -589,15 +589,17 @@ query($q: String!) {
       number title headRefName isDraft
       reviews(last: 50) { totalCount nodes { id author { login __typename } authorAssociation state submittedAt body
                                               comments { totalCount } } }
-      comments(last: 50) { totalCount nodes { id author { login __typename } authorAssociation createdAt body } }
+      comments(last: 50) { totalCount nodes { id author { login __typename } authorAssociation createdAt lastEditedAt body } }
     } }
   }
 }
 """
 
 
-def feedback_events(pr, me, coderabbit, ignored):
-    """自分以外からの、対応を要しうるレビュー・コメント。"""
+def feedback_events(pr, me, coderabbit, ignored, markers=()):
+    """自分以外からの、対応を要しうるレビュー・コメント。
+
+    markers は CI のレビューのコメントの先頭に付く文字列。bot が書いたものに限り、作者が ignored でも数える。"""
     ev = []
     for rv in pr["reviews"]["nodes"]:
         who = (rv.get("author") or {}).get("login") or ""
@@ -620,10 +622,20 @@ def feedback_events(pr, me, coderabbit, ignored):
         ev.append({"id": rv["id"], "at": rv["submittedAt"], "by": who, "kind": kind, **_trust_fields(rv)})
     for c in pr["comments"]["nodes"]:
         who = (c.get("author") or {}).get("login") or ""
-        # CodeRabbit の会話欄のコメントは walkthrough の要約と、こちらのコマンドへの返答だけ
-        if who == me or who in ignored or (coderabbit and who == coderabbit):
+        if who == me:
             continue
-        ev.append({"id": c["id"], "at": c["createdAt"], "by": who, "kind": "comment", **_trust_fields(c)})
+        trust = _trust_fields(c)
+        # マーカーを書けば人も名乗れるので、bot の書いたものだけを CI のレビューとみなす
+        if markers and trust["bot"] and (c.get("body") or "").lstrip().startswith(tuple(markers)):
+            # CI のレビューは push のたびに同じコメントを書き換える。作成日時では 2 回目以降が既出に見え、
+            # id だけでは既出判定のキーが変わらないので、最後の編集日時で新しさを見てキーにも入れる
+            at = c.get("lastEditedAt") or c["createdAt"]
+            ev.append({"id": f"{c['id']}:{at}", "at": at, "by": who, "kind": "ci_review", **trust})
+            continue
+        # CodeRabbit の会話欄のコメントは walkthrough の要約と、こちらのコマンドへの返答だけ
+        if who in ignored or (coderabbit and who == coderabbit):
+            continue
+        ev.append({"id": c["id"], "at": c["createdAt"], "by": who, "kind": "comment", **trust})
     ev.sort(key=lambda e: e["at"])
     return ev
 
@@ -679,7 +691,8 @@ def poll(args, me):
         return None
     out = []
     for pr in prs:
-        events = feedback_events(pr, me, fb.get("coderabbit_login"), set(fb.get("ignored_authors") or []))
+        events = feedback_events(pr, me, fb.get("coderabbit_login"), set(fb.get("ignored_authors") or []),
+                                 tuple(fb.get("review_comment_markers") or ()))
         if not events:
             continue
         cands = rank_for_pr(rows, pr["number"], pr["headRefName"])
