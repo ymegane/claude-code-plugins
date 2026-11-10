@@ -1,3 +1,4 @@
+import datetime as dt
 import json
 import os
 import subprocess
@@ -83,15 +84,45 @@ class StateTest(unittest.TestCase):
             with s.txn() as st:
                 w1 = state.enqueue(st, "pr:1", pr=1)
                 w2 = state.enqueue(st, "pr:1", pr=1, note="上書き")
-                q = state.ask_add(st, "質問", pr=1)
-            self.assertEqual((w1, w2, q), ("W1", "W1", "Q1"))
+                q = state.ask_add(st, "質問", pr=1, today=dt.date(2026, 11, 10))
+            self.assertEqual((w1, w2, q), ("W1", "W1", "1110-1"))
             st = s.load()
             self.assertEqual(st["kept"], {})
             self.assertEqual(st["queue"][0]["note"], "上書き")
             with s.txn() as st:
                 state.dequeue(st, "pr:1")
-                state.ask_done(st, ["Q1"])
+                state.ask_done(st, ["1110-1"])
             self.assertEqual((s.load()["queue"], s.load()["asks"]), ([], []))
+
+    def test_ask_の番号は日付と日ごとの連番(self):
+        st = state.Store(tempfile.mkdtemp()).fresh()
+        d1, d2 = dt.date(2026, 11, 10), dt.date(2026, 11, 11)
+
+        ids = [state.ask_add(st, "a", today=d1), state.ask_add(st, "b", today=d1), state.ask_add(st, "c", today=d2)]
+
+        self.assertEqual(ids, ["1110-1", "1110-2", "1111-1"])
+
+    def test_同じ_PR_と枠の_ask_は番号を変えずに差し替える(self):
+        st = state.Store(tempfile.mkdtemp()).fresh()
+        d = dt.date(2026, 11, 10)
+        first = state.ask_add(st, "古い review", pr=8075, where="review-1", cmd="x", today=d)
+
+        again = state.ask_add(st, "新しい review", pr=8075, where="review-1", today=d)
+        other_slot = state.ask_add(st, "別の枠", pr=8075, where="review-2", today=d)
+        no_pr = state.ask_add(st, "PR なし", where="review-1", today=d)
+
+        self.assertEqual((first, again, other_slot, no_pr), ("1110-1", "1110-1", "1110-2", "1110-3"))
+        self.assertEqual([q["text"] for q in st["asks"]], ["新しい review", "別の枠", "PR なし"])
+        self.assertIsNone(st["asks"][0]["cmd"], "差し替えは前の cmd を持ち越さない")
+
+    def test_ask_done_は旧形式の_Q_番号も閉じる(self):
+        st = state.Store(tempfile.mkdtemp()).fresh()
+        st["asks"] = [{"id": "Q37", "text": "旧", "pr": None, "where": None, "cmd": None, "at": util.iso()}]
+        state.ask_add(st, "新", today=dt.date(2026, 11, 10))
+
+        state.ask_done(st, ["q37", "1110-1"])
+
+        self.assertEqual(st["asks"], [])
 
     def test_private_dir(self):
         with tempfile.TemporaryDirectory() as d:

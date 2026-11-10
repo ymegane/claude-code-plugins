@@ -1127,9 +1127,9 @@ def main():
     sp.add_argument("--stale-sec", type=int, default=600, help="監視の最終確認がこれより古ければ止まっている可能性と出す")
     sp.set_defaults(func=cmd_status)
 
-    a = sub.add_parser("ask", help="ユーザーへの質問を記録する。add は Q 番号を出す")
+    a = sub.add_parser("ask", help="ユーザーへの質問を記録する。add は番号（1110-1）を出す")
     a.add_argument("op", choices=["add", "done", "list"])
-    a.add_argument("text", nargs="*", help="add は質問の文、done は Q 番号（複数可）")
+    a.add_argument("text", nargs="*", help="add は質問の文、done は番号（複数可）")
     a.add_argument("--pr", type=int)
     a.add_argument("--pane", help="質問を出したペイン（manager 自身なら省略）")
     a.add_argument("--cmd", help="ユーザーに実行してほしいコマンド")

@@ -5,6 +5,7 @@ manager が再起動したりしても status で状況を取り戻せるよう�
 読み書きは txn() で排他する。
 """
 import contextlib
+import datetime as dt
 import fcntl
 import json
 import os
@@ -138,16 +139,33 @@ def fresh_items(st, items):
 
 # ---- あなた待ち ----
 
-def ask_add(st, text, pr=None, where=None, cmd=None):
-    qid = f"Q{st['next_ask']}"
+def ask_add(st, text, pr=None, where=None, cmd=None, today=None):
+    """番号（`1110-1` = 月日と日ごとの連番）を返す。
+
+    同じ PR・同じ出どころの待ちがあれば、番号を変えずに中身を差し替える。再レビューのたびに番号を振り直すと、
+    ユーザーが追う番号が増え続けるため。
+    """
+    if pr is not None:
+        for q in st["asks"]:
+            if q.get("pr") == pr and q.get("where") == where:
+                q.update(text=text, cmd=cmd, at=util.iso())
+                return q["id"]
+    day = (today or dt.date.today()).strftime("%m%d")
+    if st.get("ask_day") != day:
+        st["ask_day"], st["next_ask"] = day, 1
+    qid = f"{day}-{st['next_ask']}"
     st["next_ask"] += 1
     st["asks"].append({"id": qid, "text": text, "pr": pr, "where": where, "cmd": cmd, "at": util.iso()})
     return qid
 
 
 def ask_done(st, ids):
-    ids = set(ids)
-    st["asks"] = [q for q in st["asks"] if q["id"] not in ids]
+    # 旧形式の `Q37` が state.json に残っているので、Q の有無と大小を問わず照合する
+    def key(s):
+        return s.strip().upper().removeprefix("Q")
+
+    ids = {key(i) for i in ids}
+    st["asks"] = [q for q in st["asks"] if key(q["id"]) not in ids]
 
 
 def ask_lines(st):
